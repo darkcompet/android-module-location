@@ -3,134 +3,96 @@
  */
 package tool.compet.location
 
-import com.google.android.gms.maps.model.LatLng
 import org.json.JSONArray
 import org.json.JSONObject
 import tool.compet.core.DkLogcats
-import tool.compet.core.DkStrings
 import tool.compet.core.trimWhiteSpaceDk
 import tool.compet.googlemap.DkGmapLocation
 import tool.compet.http.DkHttpClient
-import java.util.*
+import tool.compet.http.DkHttpConst
 
-class DkPaidApiSearcher(private val gmapKey: String) {
-	fun searchLocation(
-		latLng: LatLng?,
-		address: String,
-		useGeo: Boolean,
-		usePlace: Boolean,
-		useText: Boolean
-	): List<DkGmapLocation> {
+class DkPaidApiSearcher(private val apiKey: String) {
+	companion object {
+		const val URL_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/json"
+		const val URL_PLACES = "https://maps.googleapis.com/maps/api/place/search/json?key=%s"
+		const val URL_PLACES_TEXT = "https://maps.googleapis.com/maps/api/place/textsearch/json?key=%s"
+		const val URL_PLACES_DETAILS = "https://maps.googleapis.com/maps/api/place/details/json?key=%s"
+		const val URL_PLACES_AUTOCOMPLETE = "https://maps.googleapis.com/maps/api/place/autocomplete/json?key=%s"
+		const val URL_STATIC_MAP = "https://maps.googleapis.com/maps/api/staticmap?key=%s"
+		const val URL_NEARBY = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=%s"
+		const val URL_ALTITUDE = "https://maps.googleapis.com/maps/api/elevation/json"
+	}
 
-		val result: MutableList<DkGmapLocation> = ArrayList()
-		val finalAddress = address.apply { trimWhiteSpaceDk().replace(" ".toRegex(), "%20") }
-		var geoLink = ""
-		var placeLink = ""
-		var textLink = ""
-		val keyParam = String.format(Locale.US, "key=%s&radius=500", gmapKey)
+	fun searchLocationWithGeocode(address: String, radius: Long = 500): List<DkGmapLocation> {
+		val result = mutableListOf<DkGmapLocation>()
 
-		if (useGeo) {
-			var geoParam = keyParam
-			if (finalAddress.isNotBlank()) {
-				geoParam += String.format(Locale.US, "&address=%s&sensor=false", finalAddress)
-			}
-			if (latLng != null) {
-				geoParam += String.format(Locale.US, "&latlng=%f,%f", latLng.latitude, latLng.longitude)
-			}
-			geoLink = DkPaidApiConst.URL_GEO + geoParam
+		try {
+			val fAddress = address.apply { trimWhiteSpaceDk().replace(" ".toRegex(), "%20") }
+			val url = "${URL_GEOCODE}?key=${apiKey}&address=${fAddress}&sensor=false&radius=${radius}"
+
+			val response = DkHttpClient().execute(url, DkHttpConst.GET).body().readAsString() ?: ""
+
+			result.addAll(LocationConverter.geocode2location(response))
 		}
-		if (usePlace) {
-			var placeParam = keyParam
-			if (finalAddress.isNotBlank()) {
-				placeParam += String.format(Locale.US, "&name=%s&sensor=false", finalAddress)
-			}
-			if (latLng != null) {
-				placeParam += String.format(Locale.US, "&location=%f,%f", latLng.latitude, latLng.longitude)
-			}
-			placeLink = DkPaidApiConst.URL_PLACES + placeParam
-		}
-		if (useText) {
-			var textParam = keyParam
-			if (finalAddress.isNotBlank()) {
-				textParam += String.format(Locale.US, "&query=%s&sensor=false", finalAddress)
-			}
-			if (latLng != null) {
-				textParam += String.format(Locale.US, "&location=%f,%f", latLng.latitude, latLng.longitude)
-			}
-			textLink = DkPaidApiConst.URL_PLACES_TEXT + textParam
-		}
-		if (useGeo) {
-			val jsonGeo = getResponse(geoLink)
-			val geoLocations = DkLocations.jsonGeo2myLocation(jsonGeo)
-
-			result.addAll(geoLocations)
-		}
-		if (usePlace) {
-			val jsonPlace = getResponse(placeLink)
-			val placeLocations = DkLocations.jsonPlace2myLocation(jsonPlace)
-
-			result.addAll(placeLocations)
-		}
-		if (useText) {
-			val jsonText = getResponse(textLink)
-			val textLocations = DkLocations.jsonPlace2myLocation(jsonText)
-
-			result.addAll(textLocations)
+		catch (e: Exception) {
+			DkLogcats.error(this, e)
 		}
 
 		return result
 	}
 
-	private fun getResponse(link: String): String {
-		return try {
-			DkHttpClient(link).execute().body().asString()!!
-		} catch (e: Exception) {
-			DkLogcats.error(DkLocations::class.java, e)
-			""
+	fun searchLocationWithGeocode(lat: Double, lng: Double, radius: Long = 500): List<DkGmapLocation> {
+		val result = mutableListOf<DkGmapLocation>()
+
+		try {
+			val url = "${URL_GEOCODE}?key=${apiKey}&latlng=${lat},${lng}&sensor=false&radius=${radius}"
+
+			val response = DkHttpClient().execute(url, DkHttpConst.GET).body().readAsString() ?: ""
+
+			result.addAll(LocationConverter.geocode2location(response))
 		}
+		catch (e: Exception) {
+			DkLogcats.error(this, e)
+		}
+
+		return result
 	}
 
-	fun searchAltitude(latLng: LatLng?): Array<DkGmapLocation?>? {
-		return if (latLng == null) null else searchAltitude(latLng.latitude, latLng.longitude)
-	}
+	fun searchAltitude(_lat: Double, _lng: Double): List<DkGmapLocation> {
+		val url = "${URL_ALTITUDE}?key=${apiKey}&locations=${_lat},${_lng}"
 
-	fun searchAltitude(latitude: Double, longitude: Double): Array<DkGmapLocation?>? {
-		val format = DkPaidApiConst.URL_ALTITUDE + "key=%s&locations=%f,%f"
-		val link = DkStrings.format(format, gmapKey, latitude, longitude)
-		val data: String = try {
-			DkHttpClient(link)
-				.addToHeader(
+		try {
+			val response = DkHttpClient()
+				.putToHeader(
 					"Content-Type",
 					"application/x-www-form-urlencoded"
 				)
-				.execute().body().asString()!!
-		} catch (e: Exception) {
-			DkLogcats.error("DkPaidApiSearcher", e)
-			""
-		}
+				.execute(url, DkHttpConst.GET).body().readAsString() ?: ""
 
-		var result: Array<DkGmapLocation?>? = null
-
-		try {
-			val jsonObject = JSONObject(data)
+			val result = mutableListOf<DkGmapLocation>()
+			val jsonObject = JSONObject(response)
 			val array = jsonObject["results"] as JSONArray
-			val N = array.length()
-			result = arrayOfNulls(N)
 
-			for (i in 0 until N) {
-				val jsonDataObj = array.getJSONObject(i)
+			for (index in 0 until array.length()) {
+				val jsonDataObj = array.getJSONObject(index)
 				val alt = jsonDataObj.getDouble("elevation")
 				val lat = jsonDataObj.getJSONObject("location").getDouble("lat")
 				val lng = jsonDataObj.getJSONObject("location").getDouble("lng")
 				val resolution = jsonDataObj.getDouble("resolution")
-				result[i] = DkGmapLocation()
-				result[i]!!.setLatLng(lat, lng)
-				result[i]!!.alt = alt
-				result[i]!!.resolution = resolution
+
+				result.add(DkGmapLocation().apply {
+					this.setLatLng(lat, lng)
+					this.alt = alt
+					this.resolution = resolution
+				})
 			}
-		} catch (e: Exception) {
-			DkLogcats.error(DkLocations::class.java, e)
+
+			return result
 		}
-		return result
+		catch (e: Exception) {
+			DkLogcats.error(this, e)
+
+			return emptyList()
+		}
 	}
 }

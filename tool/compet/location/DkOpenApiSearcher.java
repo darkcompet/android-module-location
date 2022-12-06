@@ -14,6 +14,7 @@ import tool.compet.core.DkLogcats;
 import tool.compet.core.DkStrings;
 import tool.compet.googlemap.DkGmapLocation;
 import tool.compet.http.DkHttpClient;
+import tool.compet.http.DkHttpConst;
 
 /**
  * Search location (address, elevation...) with open api.
@@ -28,11 +29,10 @@ public class DkOpenApiSearcher {
 		String data;
 
 		try {
-			data = new DkHttpClient(link)
+			data = new DkHttpClient()
 				//.addToHeader("Content-Type", "application/x-www-form-urlencoded")
-				.execute().body().asString();
-		}
-		catch (Exception e) {
+				.execute(link, DkHttpConst.GET).body().readAsString();
+		} catch (Exception e) {
 			DkLogcats.error(DkOpenApiSearcher.class, e);
 			data = "";
 		}
@@ -57,9 +57,8 @@ public class DkOpenApiSearcher {
 
 				result.add(loc);
 			}
-		}
-		catch (Exception e) {
-			DkLogcats.error(DkLocations.class, e);
+		} catch (Exception e) {
+			DkLogcats.error(LocationConverter.class, e);
 		}
 		return result;
 	}

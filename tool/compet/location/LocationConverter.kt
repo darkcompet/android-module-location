@@ -9,16 +9,16 @@ import org.json.JSONObject
 import tool.compet.core.DkLogcats
 import tool.compet.googlemap.DkGmapLocation
 
-object DkLocations {
+object LocationConverter {
 	@JvmStatic
-	fun address2myLocation(address: Address): DkGmapLocation {
+	fun address2location(address: Address): DkGmapLocation {
 		return DkGmapLocation().apply {
 			this.setLatLng(address.latitude, address.longitude)
 			this.address = if (address.maxAddressLineIndex >= 0) address.getAddressLine(0) else ""
 		}
 	}
 
-	fun jsonGeo2myLocation(jsonGeo: String): List<DkGmapLocation> {
+	fun geocode2location(jsonGeo: String): List<DkGmapLocation> {
 		val result = mutableListOf<DkGmapLocation>()
 
 		try {
@@ -37,13 +37,13 @@ object DkLocations {
 			}
 		}
 		catch (e: Exception) {
-			DkLogcats.error(DkLocations::class.java, e)
+			DkLogcats.error(LocationConverter::class.java, e)
 		}
 
 		return result
 	}
 
-	fun jsonPlace2myLocation(jsonPlace: String): List<DkGmapLocation> {
+	fun place2location(jsonPlace: String): List<DkGmapLocation> {
 		val result = mutableListOf<DkGmapLocation>()
 
 		try {
@@ -61,7 +61,7 @@ object DkLocations {
 			}
 		}
 		catch (e: Exception) {
-			DkLogcats.error(DkLocations::class.java, e)
+			DkLogcats.error(LocationConverter::class.java, e)
 		}
 
 		return result

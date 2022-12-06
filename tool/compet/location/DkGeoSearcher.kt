@@ -4,7 +4,6 @@
 package tool.compet.location
 
 import android.content.Context
-import android.location.Address
 import android.location.Geocoder
 import tool.compet.core.DkLogcats
 import tool.compet.googlemap.DkGmapLocation
@@ -18,25 +17,20 @@ class DkGeoSearcher(context: Context) {
 	/**
 	 * Search for result to `Address`.
 	 */
-	fun searchForAddress(lat: Double, lng: Double, maxResults: Int): List<Address> {
+	fun searchByAddress(address: String, maxResults: Int): List<DkGmapLocation> {
 		return try {
-			geocoder.getFromLocation(lat, lng, maxResults)
-		}
-		catch (e: Exception) {
-			DkLogcats.error(this, e)
-			emptyList()
-		}
-	}
+			val items = geocoder.getFromLocationName(address, maxResults) ?: emptyList()
+			val result = mutableListOf<DkGmapLocation>()
 
-	/**
-	 * Search for result to `Address`.
-	 */
-	fun searchForAddress(name: String, maxResults: Int): List<Address> {
-		return try {
-			geocoder.getFromLocationName(name, maxResults)
+			for (item in items) {
+				result.add(LocationConverter.address2location(item))
+			}
+
+			result
 		}
 		catch (e: Exception) {
 			DkLogcats.error(this, e)
+
 			emptyList()
 		}
 	}
@@ -44,23 +38,21 @@ class DkGeoSearcher(context: Context) {
 	/**
 	 * Search for result to `DkLocation`.
 	 */
-	fun searchForLocation(lat: Double, lng: Double, maxResults: Int): List<DkGmapLocation> {
-		val result = mutableListOf<DkGmapLocation>()
-		for (address in searchForAddress(lat, lng, maxResults)) {
-			result.add(DkLocations.address2myLocation(address))
-		}
-		return result
-	}
+	fun searchByLatLng(lat: Double, lng: Double, maxResults: Int): List<DkGmapLocation> {
+		return try {
+			val items = geocoder.getFromLocation(lat, lng, maxResults) ?: emptyList()
 
-	/**
-	 * Search for result to `DkLocation`.
-	 */
-	fun searchForLocation(name: String, maxResults: Int): List<DkGmapLocation> {
-		val res = mutableListOf<DkGmapLocation>()
-		for (address in searchForAddress(name, maxResults)) {
-			res.add(DkLocations.address2myLocation(address))
-		}
-		return res
-	}
+			val result = mutableListOf<DkGmapLocation>()
+			for (address in items) {
+				result.add(LocationConverter.address2location(address))
+			}
 
+			result
+		}
+		catch (e: Exception) {
+			DkLogcats.error(this, e)
+
+			emptyList()
+		}
+	}
 }
