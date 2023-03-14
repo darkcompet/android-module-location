@@ -4,7 +4,6 @@
 package tool.compet.location
 
 import android.location.Location
-import tool.compet.location.DkLocation
 
 /**
  * Own defined location model which does NOT dependent to model of other libraries.
